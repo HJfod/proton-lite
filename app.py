@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter.ttk import *
 from tkinter.messagebox import showinfo
+from tkinter.filedialog import askopenfilename
 from tkinter import font
 from pathlib import Path
 import sys, os
@@ -24,6 +25,8 @@ fnt		= "Segoe UI Light"
 fntSys	= "Segoe UI"
 theme	= "Light"
 attach	= 0
+change	= 0
+opened	= ""
 
 dir = os.path.realpath(__file__).replace("app.py","")+"data"
 ext = '.pdat'
@@ -110,7 +113,13 @@ def newFile():
 	showinfo("window", "sup fam")
 
 def openFile():
-	showinfo("window", "sup fam")
+	f = askopenfilename()
+	fr = open(f, "r")
+	app.e.delete("1.0",END)
+	app.e.insert("1.0",fr.read())
+	fr.close()
+	opened = askopenfilename().split("\\")
+	opened = opened[len(opened)-1]
 
 def saveFile():
 	showinfo("window", "sup fam")
@@ -203,8 +212,9 @@ class Window(Frame):
 		
 		self.pack(fill=BOTH, expand=1)
 		
-		self.e = Text(self, font=fntTx, bg=cBG, fg=cFG, tabs=5, selectbackground=cDark, insertbackground=cFG, bd=0, padx=pad, pady=pad, borderwidth=0)
+		self.e = Text(self, font=fntTx, bg=cBG, fg=cFG, tabs=5, wrap=WORD, selectbackground=cDark, insertbackground=cFG, bd=0, padx=pad, pady=pad, borderwidth=0)
 		self.e.place(x=0, y=0, width=wWidth, height=wHeight)
+		self.e.bind("<ButtonRelease-1>", lambda e:[change=1,self.master.title(opened+"*")])
 		
 		self.bind('<Configure>', self.resize)
 
