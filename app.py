@@ -6,6 +6,7 @@ from tkinter.filedialog import askopenfilename
 from tkinter.filedialog import asksaveasfilename
 from tkinter import font
 from pathlib import Path
+import webbrowser
 import sys, os
 import re
 
@@ -32,6 +33,7 @@ cBG		= '#000'
 cFG		= '#fff'
 cDark	= '#222'
 cHover	= '#444'
+cLK		= '#44a'
 zoom	= 2
 min		= 5
 max		= 41
@@ -44,13 +46,15 @@ opened	= File(name="",path="",c="")
 appname	= "Proton Lite"
 rlimit	= 4
 enc		= "utf-8"
+version	= "v1.0_release"
+icon	= os.path.realpath(__file__).replace("app.py","")+'/resources/icon.ico'
 
 dir = os.path.realpath(__file__).replace("app.py","")+"data"
 ext = '.pdat'
 if not (Path(dir).is_dir()):
 	Path(dir).mkdir()
 	files = [
-		("themes","Light\ncBG=#fff\ncFG=#000\ncDark=#ddd\ncHover=#bbb\nDark\ncBG=#000\ncFG=#fff\ncDark=#222\ncHover=#444"),
+		("themes","Light\ncBG=#fff\ncFG=#000\ncDark=#ddd\ncHover=#bbb\ncLK=#44a\nDark\ncBG=#000\ncFG=#fff\ncDark=#222\ncHover=#444\ncLK=#6cf"),
 		("user",""),
 		("recent","")
 	]
@@ -89,6 +93,7 @@ def confirmSave():
 
 def editFont():
 	w = Toplevel()
+	w.iconbitmap(icon)
 	w.title("Select Font")
 	w.geometry("400x400")
 	
@@ -98,9 +103,6 @@ def editFont():
 	fr = Frame(w, style='s.Label')
 	
 	fs = font.Font(family=fnt, size=txSizeD)
-	
-#	fss = Style()
-#	fss.configure('sf.Label', foreground=cFG, background=cBG, font=fs)
 	
 	l = Label(fr, text="Preview Text 123", style='s.Label', font=fs)
 	
@@ -215,23 +217,25 @@ def switchTheme(to):
 	f.close()
 	
 	c = 0
-	co = [None] * 4
+	co = [None] * 5
 	for i in range(0,len(t)):
-		if c > 0 and c < 5:
+		if c > 0 and c < 6:
 			co[c-1] = (t[i].split("="))[1]
 			c += 1
 		if (t[i] == to):
 			c = 1
 	if (co[0] == None):
-		co = ['#fff','#000','#ddd','#bbb']
+		co = ['#fff','#000','#ddd','#bbb','#44a']
 	
 	cBG=co[0]
 	cFG=co[1]
 	cDark=co[2]
 	cHover=co[3]
+	cLK=co[4]
 	
 	app.e.config(selectbackground=cDark, insertbackground=cFG, bg=cBG, fg=cFG)
 	app.styTx.configure('s.Label', foreground=cFG, background=cBG, font=fntSys)
+	app.styLk.configure('sl.Label', foreground=cLK, background=cBG, font=fntSysU)
 	app.styBt.configure('s.TButton',foreground=cFG,background=cDark,font=(fntSys,txSizeB),relief="flat")
 	app.styBt.map('s.TButton', background=[('pressed','!disabled',cHover),('active',cHover)], font=[('active',(fntSys,txSizeB))], highlightcolor=[('active','#f00')])
 	app.stySc.configure('s.Horizontal.TScale',db=0,foreground='#f00',background=cFG,font=(fntSys,txSizeB),relief="flat")
@@ -240,17 +244,50 @@ def switchTheme(to):
 
 def openHelp():
 	w = Toplevel()
+	w.iconbitmap(icon)
 	w.title("Help")
-	w.geometry("{}x{}".format(20*txSizeS,10*txSizeS))
+	w.geometry("{}x{}".format(22*txSizeS,23*txSizeS))
 	
 	f = Frame(w, style='s.Label')
-	l = Label(f, text="Shortcuts:\n\nIncrease text size: Ctrl + +\nDecrease text size: Ctrl + -", style='s.Label')
+	l = Label(f, text="Shortcuts:"
+	"\n\nIncrease text size: Ctrl + +"
+	"\nDecrease text size: Ctrl + -"
+	"\nNew file: Ctrl + N"
+	"\nSave file: Ctrl + S"
+	"\nSave file as: Ctrl + Shift + S"
+	"\nOpen file: Ctrl + O"
+	"\nView file info:Ctrl + I"
+	"\nEdit font: Ctrl + F"
+	"\nOpen help: Ctrl + H"
+	"\nToggle fullscreen: F11",
+	style='s.Label')
 	
 	l.pack(fill='x', padx=pad, pady=pad)
 	f.pack(anchor=N, fill=BOTH, expand=True, side=LEFT)
 
+
+def web(url):
+	webbrowser.open_new(url)
+
+def openAbout():
+	w = Toplevel()
+	w.iconbitmap(icon)
+	w.title("About")
+	w.geometry("{}x{}".format(20*txSizeS,11*txSizeS))
+	
+	f = Frame(w, style='s.Label')
+	l = Label(f, text="Version: "+version+"\n\nDeveloped by HJfod", style='s.Label')
+	
+	g = Label(f, text="Github page", style='sl.Label', cursor="hand2")
+	g.bind("<Button-1>", lambda e: web("https://github.com/HJfod/proton-lite"))
+	
+	l.pack(fill='x', padx=pad, pady=pad)
+	g.pack(fill='x', padx=pad, pady=pad)
+	f.pack(anchor=N, fill=BOTH, expand=True, side=LEFT)
+
 def fileInfo():
 	w = Toplevel()
+	w.iconbitmap(icon)
 	w.title("File information")
 	w.geometry("{}x{}".format(20*txSizeS,10*txSizeS))
 	
@@ -290,6 +327,10 @@ def docChange():
 		if not app.master.title().endswith("*"):
 			app.master.title(app.master.title()+"*")
 
+def handleKey(e):
+	if e.keycode == 122:
+		root.state('zoomed') if root.state() == "normal" else root.state("normal")
+
 class Window(Frame):
 	def __init__(self, master=None):
 		Frame.__init__(self, master)
@@ -300,6 +341,7 @@ class Window(Frame):
 		self.styBt = Style()
 		self.styBt.theme_use('clam')
 		self.stySc = Style()
+		self.styLk = Style()
 	
 	def init_window(self):
 		self.master.title(appname)
@@ -323,11 +365,12 @@ root = Tk()
 
 fntTx = font.Font(family=fnt, size=txSizeD)
 fntSys = font.Font(family=fntSys, size=txSizeS)
+fntSysU = font.Font(family=fntSys, size=txSizeS, underline=1)
 
 menu = Menu(root, tearoff=0)
 
 fmenu = Menu(menu, tearoff=0)
-fmenu.add_command(label="Info", command=fileInfo)
+fmenu.add_command(label="Info", command=fileInfo, accelerator="Ctrl+I")
 fmenu.add_separator()
 fmenu.add_command(label="New", command=newFile, accelerator="Ctrl+N")
 fmenu.add_command(label="Save", command=saveFile, accelerator="Ctrl+S")
@@ -358,7 +401,7 @@ fmenu.add_command(label="Quit", command=root.quit, accelerator="Alt+F4")
 menu.add_cascade(label="File", menu=fmenu)
 
 smenu = Menu(menu, tearoff=0)
-smenu.add_command(label="Edit font", command=editFont)
+smenu.add_command(label="Edit font", command=editFont, accelerator="Ctrl+F")
 menu.add_cascade(label="Settings", menu=smenu)
 
 tmenu = Menu(smenu, tearoff=0)
@@ -384,9 +427,14 @@ smenu.add_cascade(label="Theme", menu=tmenu)
 
 wmenu = Menu(menu, tearoff=0)
 wmenu.add_command(label="Attach/detach menu", command=tachMenu)
+wmenu.add_command(label="Fullscreen", command=lambda:[root.state('zoomed') if root.state() == "normal" else root.state("normal")], accelerator="F11")
+wmenu.add_command(label="Minimize", command=lambda:[root.state('iconic') if root.state() == "normal" else root.state("normal")])
 menu.add_cascade(label="Window", menu=wmenu)
 
-menu.add_command(label="Help", command=openHelp)
+hmenu = Menu(menu, tearoff=0)
+hmenu.add_command(label="Help", command=openHelp, accelerator="Ctrl+H")
+hmenu.add_command(label="About", command=openAbout)
+menu.add_cascade(label="Help", menu=hmenu)
 
 root.bind("<Control-+>", zoomIn)
 root.bind("<Control-minus>", zoomOut)
@@ -394,13 +442,18 @@ root.bind("<Control-n>", lambda e:[newFile()])
 root.bind("<Control-o>", lambda e:[openFile()])
 root.bind("<Control-s>", lambda e:[saveFile()])
 root.bind("<Control-S>", lambda e:[saveFile(True)])
+root.bind("<Control-i>", lambda e:[fileInfo()])
+root.bind("<Control-f>", lambda e:[editFont()])
+root.bind("<Control-h>", lambda e:[openHelp()])
 root.bind("<Control-0>", zoomNorm)
 root.bind('<Button-3>', contextmenu)
+root.bind("<Key>", handleKey)
 
 if (attach):
 	tachMenu()
 
 root.geometry("{}x{}".format(wWidth, wHeight))
+root.iconbitmap(icon)
 
 app = Window(root)
 switchTheme(theme)
