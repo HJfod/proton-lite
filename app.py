@@ -2,10 +2,20 @@ from tkinter import *
 from tkinter.ttk import *
 from tkinter.messagebox import showinfo
 from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import asksaveasfilename
 from tkinter import font
 from pathlib import Path
 import sys, os
 import re
+
+class File:
+	def __init__(self, name, path):
+		self.name = name
+		self.path = path
+	def __getitem__(self,key):
+		return getattr(self,key)
+	def __setitem__(self, key, value):
+		self.__dict__[key] = value
 
 sbSize	= 50
 txSizeD	= 10
@@ -26,7 +36,8 @@ fntSys	= "Segoe UI"
 theme	= "Light"
 attach	= 0
 change	= 0
-opened	= ""
+opened	= File(name="",path="")
+appname	= "Proton Lite"
 
 dir = os.path.realpath(__file__).replace("app.py","")+"data"
 ext = '.pdat'
@@ -113,16 +124,27 @@ def newFile():
 	showinfo("window", "sup fam")
 
 def openFile():
+	global opened
 	f = askopenfilename()
 	fr = open(f, "r")
 	app.e.delete("1.0",END)
 	app.e.insert("1.0",fr.read())
 	fr.close()
-	opened = askopenfilename().split("\\")
-	opened = opened[len(opened)-1]
+	opened["name"] = f.split("/")[1]
+	opened["path"] = f
+	app.master.title(opened["name"])
 
 def saveFile():
-	showinfo("window", "sup fam")
+	if (opened["path"] == ""):
+		f = asksaveasfilename(defaultextension=".txt",filetypes=(("Text files","*.txt"),("All files","*.*")))
+		fr = open(f, "w", encoding="utf-8")
+		fr.write(app.e.get("1.0", END))
+		fr.close()
+		opened["path"] = f
+	else:
+		fr = open(opened["path"], "w")
+		fr.write(app.e.get("1.0", END))
+		fr.close()
 
 def switchTheme(to):
 	global cBG, cFG, cDark, cHover, theme
@@ -176,7 +198,7 @@ def fileInfo():
 	schar = str(len(re.sub(' +', '', app.e.get("1.0", END).replace("\n"," "))))
 	
 	f = Frame(w, style='s.Label')
-	l = Label(f, text="Words: "+words+"\nCharacters: "+chars+"\nWithout spaces: "+schar, style='s.Label')
+	l = Label(f, text="Words: "+words+"\nCharacters: "+chars+"\nWithout spaces: "+schar+"\nPath: "+opened["path"], style='s.Label')
 	
 	l.pack(fill='x', padx=pad, pady=pad)
 	f.pack(anchor=N, fill=BOTH, expand=True, side=LEFT)
@@ -208,13 +230,13 @@ class Window(Frame):
 		self.stySc = Style()
 	
 	def init_window(self):
-		self.master.title("Proton Lite")
+		self.master.title(appname)
 		
 		self.pack(fill=BOTH, expand=1)
 		
 		self.e = Text(self, font=fntTx, bg=cBG, fg=cFG, tabs=5, wrap=WORD, selectbackground=cDark, insertbackground=cFG, bd=0, padx=pad, pady=pad, borderwidth=0)
 		self.e.place(x=0, y=0, width=wWidth, height=wHeight)
-		self.e.bind("<ButtonRelease-1>", lambda e:[change=1,self.master.title(opened+"*")])
+#		self.e.bind("<Key>", lambda e:[exec("change=1"),self.master.title(appname+"*") if opened=="" else self.master.title(opened+"*")])
 		
 		self.bind('<Configure>', self.resize)
 
