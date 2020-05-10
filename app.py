@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter.ttk import *
 from tkinter.messagebox import showinfo
+from tkinter.messagebox import askquestion
 from tkinter.filedialog import askopenfilename
 from tkinter.filedialog import asksaveasfilename
 from tkinter import font
@@ -9,13 +10,16 @@ import sys, os
 import re
 
 class File:
-	def __init__(self, name, path):
+	def __init__(self, name, path, c):
 		self.name = name
 		self.path = path
+		self.c = c
 	def __getitem__(self,key):
 		return getattr(self,key)
 	def __setitem__(self, key, value):
 		self.__dict__[key] = value
+
+global enc
 
 sbSize	= 50
 txSizeD	= 10
@@ -36,8 +40,10 @@ fntSys	= "Segoe UI"
 theme	= "Light"
 attach	= 0
 change	= 0
-opened	= File(name="",path="")
+opened	= File(name="",path="",c="")
 appname	= "Proton Lite"
+rlimit	= 4
+enc		= "utf-8"
 
 dir = os.path.realpath(__file__).replace("app.py","")+"data"
 ext = '.pdat'
@@ -45,7 +51,8 @@ if not (Path(dir).is_dir()):
 	Path(dir).mkdir()
 	files = [
 		("themes","Light\ncBG=#fff\ncFG=#000\ncDark=#ddd\ncHover=#bbb\nDark\ncBG=#000\ncFG=#fff\ncDark=#222\ncHover=#444"),
-		("user","")
+		("user",""),
+		("recent","")
 	]
 	for i in range(0, len(files)):
 		f = open(dir+"/"+files[i][0]+ext, "w") 
@@ -70,6 +77,15 @@ def applyFont(f,s):
 	fnt = f
 	txSizeD = s
 	fntTx.config(family=f,size=s)
+
+def confirmSave():
+	if (change == 1):
+		if askquestion("Save changes", "Your file hasn't been saved! Are you sure you want to continue?", icon='warning') == 'no':
+			return True
+		else:
+			return False
+	else:
+		return False
 
 def editFont():
 	w = Toplevel()
@@ -120,33 +136,78 @@ def editFont():
 def contextmenu(event):
 	menu.post(root.winfo_x() + event.x, root.winfo_y() + event.y)
 
+def addRecent(f):
+	rr = open(dir+"/recent"+ext, "r")
+	c = rr.read().splitlines()
+	rr.close()
+	co = ""
+	if (type(c) is list):
+		for i in range(len(c)):
+			if (i > len(c)-rlimit):
+				co += c[i] + "\n"
+	r = open(dir+"/recent"+ext, "w")
+	r.write(co+f+"\n")
+	r.close()
+	if len(c) > rlimit-1:
+		rmenu.delete(0)
+	rmenu.add_command(label=f, command=openFile(f))
+
 def newFile():
-	showinfo("window", "sup fam")
-
-def openFile():
-	global opened
-	f = askopenfilename()
-	fr = open(f, "r")
+	if confirmSave(): return
 	app.e.delete("1.0",END)
-	app.e.insert("1.0",fr.read())
-	fr.close()
-	opened["name"] = f.split("/")[1]
-	opened["path"] = f
-	app.master.title(opened["name"])
+	app.master.title(appname)
+	change = 0
+	opened["name"] = ""
+	opened["path"] = ""
+	opened["c"] = app.e.get("1.0",END)
 
-def saveFile():
-	if (opened["path"] == ""):
+def openFile(p = ""):
+	if confirmSave(): return
+	global opened
+	if (p == ""):
+		f = askopenfilename()
+		if f == '': return
+		addRecent(f)
+	else:
+		f = p
+	print(enc)
+	try:
+		fr = open(f, "r", encoding=enc)
+		app.e.delete("1.0",END)
+		app.e.insert("1.0",fr.read())
+		fr.close()
+		opened["name"] = f.split("/")[-1]
+		opened["path"] = f
+		app.master.title(opened["name"])
+		opened["c"] = app.e.get("1.0",END)
+	except UnicodeDecodeError:
+		showinfo("Error","Selected encoding and file encoding do not match.")
+
+def saveFile(saveas = False):
+	global change
+	if (opened["path"] == "" or saveas == True):
 		f = asksaveasfilename(defaultextension=".txt",filetypes=(("Text files","*.txt"),("All files","*.*")))
-		fr = open(f, "w", encoding="utf-8")
+		if f == '': return
+		fr = open(f, "w", encoding=enc)
 		fr.write(app.e.get("1.0", END))
 		fr.close()
 		opened["path"] = f
+		opened["name"] = f.split("/")[-1]
+		addRecent(f)
 	else:
 		fr = open(opened["path"], "w")
 		fr.write(app.e.get("1.0", END))
 		fr.close()
+	change = 0
+	if (app.master.title().endswith("*")):
+		app.master.title(app.master.title()[:-1])
+	opened["c"] = app.e.get("1.0", END)
 
 def switchTheme(to):
+	try:
+		app
+	except:
+		return
 	global cBG, cFG, cDark, cHover, theme
 	
 	f = open(dir+"/themes"+ext, "r") 
@@ -154,7 +215,7 @@ def switchTheme(to):
 	f.close()
 	
 	c = 0
-	co = [None,None,None,None]
+	co = [None] * 4
 	for i in range(0,len(t)):
 		if c > 0 and c < 5:
 			co[c-1] = (t[i].split("="))[1]
@@ -210,6 +271,8 @@ def tachMenu():
 		root.config(menu='')
 
 def on_closing():
+	if confirmSave(): return
+	
 	cont = "theme='"+theme+"'\nattach="+("0"if root["menu"]=='' else"1")+"\nfntTx.config(family='"+fntTx["family"]+"',size="+str(fntTx["size"])+")\nwWidth="+str(wWidth)+"\nwHeight="+str(wHeight)
 	
 	f = open(dir+"/user"+ext, "w")
@@ -217,6 +280,15 @@ def on_closing():
 	f.close()
 	
 	root.destroy()
+
+def docChange():
+	c = app.e.get("1.0",END)
+	if c == "\n": return
+	if (c != opened["c"]):
+		global change
+		change = 1
+		if not app.master.title().endswith("*"):
+			app.master.title(app.master.title()+"*")
 
 class Window(Frame):
 	def __init__(self, master=None):
@@ -236,7 +308,7 @@ class Window(Frame):
 		
 		self.e = Text(self, font=fntTx, bg=cBG, fg=cFG, tabs=5, wrap=WORD, selectbackground=cDark, insertbackground=cFG, bd=0, padx=pad, pady=pad, borderwidth=0)
 		self.e.place(x=0, y=0, width=wWidth, height=wHeight)
-#		self.e.bind("<Key>", lambda e:[exec("change=1"),self.master.title(appname+"*") if opened=="" else self.master.title(opened+"*")])
+		self.e.bind("<Key>", lambda e:[docChange()])
 		
 		self.bind('<Configure>', self.resize)
 
@@ -257,11 +329,32 @@ menu = Menu(root, tearoff=0)
 fmenu = Menu(menu, tearoff=0)
 fmenu.add_command(label="Info", command=fileInfo)
 fmenu.add_separator()
-fmenu.add_command(label="New", command=newFile)
-fmenu.add_command(label="Save", command=saveFile)
-fmenu.add_command(label="Open", command=openFile)
+fmenu.add_command(label="New", command=newFile, accelerator="Ctrl+N")
+fmenu.add_command(label="Save", command=saveFile, accelerator="Ctrl+S")
+fmenu.add_command(label="Save as", command=lambda:[saveFile(True)], accelerator="Ctrl+Shift+S")
+fmenu.add_command(label="Open", command=openFile, accelerator="Ctrl+O")
+
+rmenu = Menu(fmenu, tearoff=0)
+
+rcf = open(dir+"/recent"+ext, "r")
+rct = rcf.read().splitlines()
+rcf.close()
+
+for i in range(len(rct)):
+	rmenu.add_command(label=rct[i], command=lambda r=rct[i]: openFile(r))
+
+fmenu.add_cascade(label="Recent", menu=rmenu)
+
 fmenu.add_separator()
-fmenu.add_command(label="Quit", command=root.quit)
+
+emenu = Menu(fmenu, tearoff=0)
+emenu.add_radiobutton(label="UTF-8", variable=enc, value='utf-8')
+emenu.add_radiobutton(label="ASCII", variable=enc, value='ascii')
+emenu.invoke(0)
+fmenu.add_cascade(label="Encoding", menu=emenu)
+
+fmenu.add_command(label="Quit", command=root.quit, accelerator="Alt+F4")
+
 menu.add_cascade(label="File", menu=fmenu)
 
 smenu = Menu(menu, tearoff=0)
@@ -274,10 +367,19 @@ thf = open(dir+"/themes"+ext, "r")
 tht = thf.read().splitlines()
 thf.close()
 
-for i in range(0,len(tht)):
+udf = open(dir+"/user"+ext, "r")
+udt = udf.read().splitlines()
+udf.close()
+
+for i in range(len(udt)):
+	exec(udt[i])
+
+for i in range(len(tht)):
 	if ("=" not in tht[i]):
 		tx = tht[i]
 		tmenu.add_radiobutton(label=tx, command=lambda t=tx:[switchTheme(t)])
+		if tx == theme:
+			tmenu.invoke(i)
 smenu.add_cascade(label="Theme", menu=tmenu)
 
 wmenu = Menu(menu, tearoff=0)
@@ -286,15 +388,12 @@ menu.add_cascade(label="Window", menu=wmenu)
 
 menu.add_command(label="Help", command=openHelp)
 
-udf = open(dir+"/user"+ext, "r")
-udt = udf.read().splitlines()
-udf.close()
-
-for i in range(len(udt)):
-	exec(udt[i])
-
 root.bind("<Control-+>", zoomIn)
 root.bind("<Control-minus>", zoomOut)
+root.bind("<Control-n>", lambda e:[newFile()])
+root.bind("<Control-o>", lambda e:[openFile()])
+root.bind("<Control-s>", lambda e:[saveFile()])
+root.bind("<Control-S>", lambda e:[saveFile(True)])
 root.bind("<Control-0>", zoomNorm)
 root.bind('<Button-3>', contextmenu)
 
